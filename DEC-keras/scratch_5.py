@@ -1,7 +1,8 @@
 # # import pandas as pd
-# # import numpy as np
+import numpy as np
 from konlpy.tag import Okt
 okt = Okt()
+from keras.preprocessing.text import Tokenizer
 # # from gensim.models import Word2Vec
 # # tokenized_data = []
 # # from keras.utils.np_utils import to_categorical
@@ -167,10 +168,13 @@ okt = Okt()
 #             temp.append(ok)
 #     tokenized_data.append(temp)
 # print(tokenized_data)
+
+#########################################################################################
 import numpy as np
 import pandas as pd
 from konlpy.tag import Okt
-
+from tensorflow.keras.preprocessing.text import Tokenizer
+tokenizer = Tokenizer()
 okt = Okt()
 from gensim.models import Word2Vec
 
@@ -196,7 +200,43 @@ for review in data:
         if tag not in ['Josa', 'Eomi', 'Punctation']:
             temp.append(text)
     tokenized_data.append(temp)
+tokenizer.fit_on_texts(tokenized_data)
+# print(tokenizer.word_index)
 
-model = Word2Vec(sentences=tokenized_data, window=5, min_count=8, workers=4, sg=1)
+# 빈도수 검사
+threshold = 2
+total_cnt = len(tokenizer.word_index)
+rare_cnt = 0
+total_freq = 0
+rare_freq = 0
 
-print(model.wv['모텔'])
+for key, value in tokenizer.word_counts.items():
+    total_freq = total_freq + value
+
+    if value < threshold:
+        rare_cnt += 1
+        rare_freq = rare_freq + value
+
+# print("단어 집합의 크기 : {}".format(total_cnt))
+# print("등장 빈도가 {}번 이하인 희귀 단어의 수 : {}".format(threshold-1, rare_cnt))
+# print("단어 집합에서 희귀 단어의 비율 : {:.2f}%".format((rare_cnt / total_cnt) * 100))
+# print("전체 등장 빈도에서 희귀 단어 등장 빈도 비율 : {:.2f}%".format((rare_freq / total_freq) * 100))
+
+vocab_size = total_cnt - rare_cnt + 1
+# print(vocab_size)
+
+tokenizer = Tokenizer(vocab_size, oov_token='<oov>')
+tokenizer.fit_on_texts(tokenized_data)
+
+x_encoded = tokenizer.texts_to_matrix(tokenized_data, mode='freq')
+print(x_encoded[:10])
+print(x_encoded.shape)
+# drop_train = [index for index, sentence in enumerate(x_encoded) if len(sentence) < 1]
+# print(drop_train) -> 없음
+# x_encoded_final = np.delete(x_encoded, drop_train, axis=0)
+
+
+############################################################
+
+
+

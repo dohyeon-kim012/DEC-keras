@@ -313,6 +313,9 @@ def load_crawling_data():
     import pandas as pd
     from konlpy.tag import Okt
     okt = Okt()
+    from tensorflow.keras.preprocessing.text import Tokenizer
+    tokenizer = Tokenizer()
+
     from gensim.models import Word2Vec
     tokenized_data = []
     y_list = []
@@ -339,21 +342,51 @@ def load_crawling_data():
         tokenized_data.append(temp)
     '''
     # 데이터가 이미 형태소 분석이 되어 있는 경우
+
     print('Loading data...')
     df = pd.read_csv("./data/crawling_data/reviewdata_hotelsdotcom_preprocessed_okt.csv", index_col=[0], nrows=50000)
     df.dropna(subset=['tokens', 'total_score'], inplace=True)
     df = df.reset_index(drop=True)
     tokenized_data = df['tokens']
     y = (df['total_score'] / 2)
+    y = np.array(y, dtype='int64')
 
     num_classes = np.max(y)
     print(num_classes, 'classes')
 
+    # threshold = 2
+    # total_cnt = len(tokenizer.word_index)
+    # rare_cnt = 0
+    # total_freq = 0
+    # rare_freq = 0
+    #
+    # for key, value in tokenizer.word_counts.items():
+    #     total_freq = total_freq + value
+    #
+    #     if value < threshold:
+    #         rare_cnt += 1
+    #         rare_freq = rare_freq + value
 
+    # print("단어 집합의 크기 : {}".format(total_cnt))
+    # print("등장 빈도가 {}번 이하인 희귀 단어의 수 : {}".format(threshold-1, rare_cnt))
+    # print("단어 집합에서 희귀 단어의 비율 : {:.2f}%".format((rare_cnt / total_cnt) * 100))
+    # print("전체 등장 빈도에서 희귀 단어 등장 빈도 비율 : {:.2f}%".format((rare_freq / total_freq) * 100))
 
+    # vocab_size = total_cnt - rare_cnt + 1
+    # # print(vocab_size)
+    #
+    # tokenizer = Tokenizer(vocab_size, oov_token='<oov>')
+    # tokenizer.fit_on_texts(tokenized_data)
+
+    tokenizer.fit_on_texts(tokenized_data)
+    total_cnt = len(tokenizer.word_index)
+
+    max_words = total_cnt
+    tokenizer = Tokenizer(num_words=max_words)
+    tokenizer.fit_on_texts(tokenized_data)
+    x = tokenizer.texts_to_matrix(tokenized_data, mode='tfidf')
     '''
-    1) MinMaxScaler 대신 one-hot encoding
-    '''
+    Word2Vec 시도
     model = Word2Vec(sentences=tokenized_data, window=5, min_count=8, workers=4, sg=1)
     # x = np.zeros((len(tokenized_data), 100), dtype='float32')
     x = np.empty((100,), dtype='float32')
@@ -378,6 +411,7 @@ def load_crawling_data():
             featureVec = np.divide(featureVec, nwords)
             # print('featureVec :', featureVec)
             x = np.append(x, featureVec, axis=0)
+            # y의 개수를 x만큼 맞추기 위해
             y_list.append(y[int(counter)])
             # x[int(counter)] = featureVec
             # n_values = np.max(featureVec) + 1
@@ -394,6 +428,11 @@ def load_crawling_data():
     # x = MinMaxScaler().fit_transform(resultfeatureVec)
     # print(x)
     print('x_train shape:', x.shape)
+    '''
+
+    print('x_train shape:', x.shape)
+    # print('y:', y[:20])
+    print('y shape:', y.shape)
     return x.astype(float), y
 
 

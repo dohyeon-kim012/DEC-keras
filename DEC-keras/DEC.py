@@ -25,7 +25,7 @@ from sklearn.cluster import KMeans
 import metrics
 
 
-def autoencoder(dims, act='softmax', init='glorot_uniform'):
+def autoencoder(dims, act='relu', init='glorot_uniform'):
     """
     Fully connected auto-encoder model, symmetric.
     Arguments:
@@ -142,7 +142,7 @@ class DEC(object):
 
     def pretrain(self, x, y=None, optimizer='adam', epochs=50, batch_size=256, save_dir='results/temp'):
         print('...Pretraining...')
-        self.autoencoder.compile(optimizer=optimizer, loss='categorical_crossentropy')
+        self.autoencoder.compile(optimizer=optimizer, loss='mse')
 
         csv_logger = callbacks.CSVLogger(save_dir + '/pretrain_log.csv')
         cb = [csv_logger]
@@ -297,7 +297,7 @@ if __name__ == "__main__":
     from datasets import load_data
     x, y = load_data(args.dataset)
     n_clusters = len(np.unique(y))
-
+    # n_clusters = 3
     init = 'glorot_uniform'
     pretrain_optimizer = 'adam'
     # setting parameters
@@ -350,17 +350,11 @@ if __name__ == "__main__":
     dec.model.summary()
     t0 = time()
     dec.compile(optimizer=SGD(0.01, 0.9), loss='kld')
-    es = callbacks.EarlyStopping(
-        monitor='val_loss',
-        mode='min',
-        verbose=1,
-        patience=10
-    )
     y_pred = dec.fit(x, y=y, tol=args.tol, maxiter=args.maxiter, batch_size=args.batch_size,
                      update_interval=update_interval, save_dir=args.save_dir)
 
-    print('y:', y[:50])
-    print('y_pred:', y_pred[:50])
+    # print('y:', y[:50])
+    # print('y_pred:', y_pred[:50])
     print()
     print('acc:', metrics.acc(y, y_pred))
     print('clustering time: ', (time() - t0))
