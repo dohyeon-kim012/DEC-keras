@@ -52,7 +52,7 @@ crawling_data                   NaN
 9                           0.49247
                  0.4924700000000001
 Name: acc, dtype: object'''
+### 연구 더 필요함
 sns.barplot(x=, y='acc', data=result, palette='Blues_d')
 plt.show()
 
-### 연구 더 필요함
