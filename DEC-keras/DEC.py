@@ -14,6 +14,7 @@ from time import time
 import numpy as np
 import keras.backend as K
 # from keras.engine.topology import Layer, InputSpec
+import pandas as pd
 from keras.layers import Dense, Input, Layer, InputSpec
 from keras.models import Model
 # from keras.optimizers import SGD
@@ -265,6 +266,13 @@ class DEC(object):
         print('saving model to:', save_dir + '/DEC_model_final.h5')
         self.model.save_weights(save_dir + '/DEC_model_final.h5')
 
+        for n in range(n_clusters):
+            print(f"{n} cluster count:", y_pred[kmeans.labels_ == n].size)
+            # print("1 cluster count:", y_pred[kmeans.labels_ == 1])
+            # print("2 cluster count:", y_pred[kmeans.labels_ == 2])
+            # print("3 cluster count:", y_pred[kmeans.labels_ == 3])
+            # print("4 cluster count:", y_pred[kmeans.labels_ == 4])
+
         return y_pred
 
 
@@ -295,7 +303,7 @@ if __name__ == "__main__":
 
     # load dataset
     from datasets import load_data
-    x, y = load_data(args.dataset)
+    x, y, raw_data = load_data(args.dataset)
     n_clusters = len(np.unique(y))
     # n_clusters = 3
     init = 'glorot_uniform'
@@ -353,8 +361,15 @@ if __name__ == "__main__":
     y_pred = dec.fit(x, y=y, tol=args.tol, maxiter=args.maxiter, batch_size=args.batch_size,
                      update_interval=update_interval, save_dir=args.save_dir)
 
+    print("==== making result to csv ====")
+    cluster_csv = {'review': raw_data, 'score': y, 'cluster_num': y_pred}
+    df = pd.DataFrame(cluster_csv)
+    df.to_csv("./result_test_40.csv", index=True, encoding='utf-8')
+
     # print('y:', y[:50])
     # print('y_pred:', y_pred[:50])
     print()
     print('acc:', metrics.acc(y, y_pred))
     print('clustering time: ', (time() - t0))
+
+

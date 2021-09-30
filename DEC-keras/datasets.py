@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 
 
 def extract_vgg16_features(x):
@@ -319,6 +320,8 @@ def load_crawling_data():
     from gensim.models import Word2Vec
     tokenized_data = []
     y_list = []
+    import gzip
+    import pickle
 
     '''형태소분석 필요한 데이터의 경우
     print('Loading data...')
@@ -344,17 +347,24 @@ def load_crawling_data():
     # 데이터가 이미 형태소 분석이 되어 있는 경우
 
     print('Loading data...')
-    df = pd.read_csv("./data/crawling_data/reviewdata_hotelsdotcom_preprocessed_okt.csv", index_col=[0], nrows=50000)
-    df.dropna(subset=['tokens', 'total_score'], inplace=True)
-    df = df.reset_index(drop=True)
-    tokenized_data = df['tokens']
-    y = (df['total_score'] / 2)
-    y = np.array(y, dtype='int64')
+    df = pd.read_csv("./data/crawling_data/test_csv_50.csv", index_col=[0])
+    # df = pd.read_csv("./reviewdata_hotelsdotcom_okt.csv", index_col=[0], nrows=300)
+    # df.dropna(subset=['tokenized_review', 'total_score'], inplace=True)
+    # df = df.reset_index(drop=True)
+    # tokenized_data = df['tokenized_review']
+    # y = (df['total_score'] / 2)
+    y = np.array(df['total_score'], dtype='int64')
+    raw_data = []
+
+    with gzip.open('./data/crawling_data/test_50_list.pkl', 'rb') as f:
+        data = pickle.load(f)
+        data = data[:y.size]
 
     num_classes = np.max(y)
     print(num_classes, 'classes')
 
-    # threshold = 2
+    # tokenizer.fit_on_texts(tokenized_data)
+    # threshold = 3
     # total_cnt = len(tokenizer.word_index)
     # rare_cnt = 0
     # total_freq = 0
@@ -373,37 +383,37 @@ def load_crawling_data():
     # print("전체 등장 빈도에서 희귀 단어 등장 빈도 비율 : {:.2f}%".format((rare_freq / total_freq) * 100))
 
     # vocab_size = total_cnt - rare_cnt + 1
-    # # print(vocab_size)
-    #
+    # print(vocab_size)
+
     # tokenizer = Tokenizer(vocab_size, oov_token='<oov>')
     # tokenizer.fit_on_texts(tokenized_data)
+    # x = tokenizer.texts_to_matrix(tokenized_data, mode='tfidf')
 
-    tokenizer.fit_on_texts(tokenized_data)
-    total_cnt = len(tokenizer.word_index)
-
-    max_words = total_cnt
-    tokenizer = Tokenizer(num_words=max_words)
-    tokenizer.fit_on_texts(tokenized_data)
-    x = tokenizer.texts_to_matrix(tokenized_data, mode='tfidf')
-    '''
-    Word2Vec 시도
-    model = Word2Vec(sentences=tokenized_data, window=5, min_count=8, workers=4, sg=1)
+    # Word2Vec 시도
+    min_count = 40
+    model = Word2Vec(sentences=data, window=5, min_count=min_count, workers=4, sg=1)
+    print(f'Vectorizing sequence data with min_count {min_count}...')
+    # model = Word2Vec.load('model_mincnt_20')
     # x = np.zeros((len(tokenized_data), 100), dtype='float32')
     x = np.empty((100,), dtype='float32')
     nwords = 0.
-    counter = 0.
-    idx_to_key = model.wv.index_to_key
-    key_to_idx = model.wv.key_to_index
+    # counter = 0.
+    # GPU ver.
+    idx_to_key = model.wv.index2word
+    # local ver.
+    # idx_to_key = model.wv.index_to_key
+    # key_to_idx = model.wv.key_to_index
     index2word_set = set(idx_to_key)
-    for review in tokenized_data:
+    for idx in tqdm(range(len(data)), desc="Word2Vec"):
         featureVec = np.zeros((100,), dtype='float32')
-        for word in review:
+        for word in data[idx]:
             if word in index2word_set:
                 nwords = nwords + 1.
                 # print('len :', len(model.wv[word])) ---> 100
                 featureVec = np.add(featureVec, model.wv[word])
                 # featureVec[np.arange(featureVec, model.wv[word])] = 1   --> 실패!
                 # featureVec = to_categorical(model.wv[word], num_classes=(len(model.wv[word])))
+        # x값이 빈 배열일 때는 y와 raw_data도 패스
         is_all_zero = not np.any(featureVec)
         if is_all_zero:
             pass
@@ -412,28 +422,21 @@ def load_crawling_data():
             # print('featureVec :', featureVec)
             x = np.append(x, featureVec, axis=0)
             # y의 개수를 x만큼 맞추기 위해
-            y_list.append(y[int(counter)])
-            # x[int(counter)] = featureVec
-            # n_values = np.max(featureVec) + 1
-            # x = np.eye(n_values)[x[counter]]
-        counter += 1
+            # y_list.append(y[int(counter)])
+            y_list.append(y[idx])
+            raw_data.append(df['review'][idx])
+        # counter += 1
             # print('x :', counter, x[int(counter)])
     # x = to_categorical(x, num_classes=x)
     y = np.array(y_list, dtype='int64')
     x = x[100:]
     x = x.reshape(y.size, -1)
     print(len(y), 'train sequences')
-    # scale to [0,1]
-    # from sklearn.preprocessing import MinMaxScaler
-    # x = MinMaxScaler().fit_transform(resultfeatureVec)
-    # print(x)
     print('x_train shape:', x.shape)
-    '''
-
-    print('x_train shape:', x.shape)
-    # print('y:', y[:20])
+    print('raw_review_data shape:', len(raw_data))
     print('y shape:', y.shape)
-    return x.astype(float), y
+
+    return x.astype(float), y, raw_data
 
 
 def load_data(dataset_name):
