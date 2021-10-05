@@ -11,6 +11,8 @@ Author:
 """
 
 from time import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import keras.backend as K
 # from keras.engine.topology import Layer, InputSpec
@@ -141,7 +143,7 @@ class DEC(object):
         clustering_layer = ClusteringLayer(self.n_clusters, name='clustering')(self.encoder.output)
         self.model = Model(inputs=self.encoder.input, outputs=clustering_layer)
 
-    def pretrain(self, x, y=None, optimizer='adam', epochs=50, batch_size=256, save_dir='results/temp'):
+    def pretrain(self, x, y=None, optimizer='adam', epochs=200, batch_size=256, save_dir='results/temp'):
         print('...Pretraining...')
         self.autoencoder.compile(optimizer=optimizer, loss='mse')
 
@@ -268,10 +270,34 @@ class DEC(object):
 
         for n in range(n_clusters):
             print(f"{n} cluster count:", y_pred[kmeans.labels_ == n].size)
-            # print("1 cluster count:", y_pred[kmeans.labels_ == 1])
-            # print("2 cluster count:", y_pred[kmeans.labels_ == 2])
-            # print("3 cluster count:", y_pred[kmeans.labels_ == 3])
-            # print("4 cluster count:", y_pred[kmeans.labels_ == 4])
+
+        print("==== making cluster_num to file")
+        np.savez('compared_test.npz', y_pred=y_pred, kmeans=kmeans.labels_)
+        print("y_pred:", y_pred)
+        print("kmeans_labels:", kmeans.labels_)
+        # np.save('y_pred_50.npy', kmeans.labels_)
+
+        print("visualization")
+        try:
+            fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+            # axes[0].scatter(x[:, 0], x[:, 1], c=y, cmap='gist_rainbow',
+            #                 edgecolor='k', s=150)
+            # axes[1].scatter(x[:, 0], x[:, 1], c=kmeans.labels_, cmap='jet',
+            #                 edgecolor='k', s=150)
+            axes[0].scatter(y, x[:, 0], cmap='gist_rainbow',
+                            edgecolor='k', s=150)
+            axes[1].scatter(kmeans.labels_, x[:, 0], cmap='jet',
+                            edgecolor='k', s=150)
+
+            axes[0].tick_params(direction='in', length=10, width=5, colors='k', labelsize=20)
+            axes[1].tick_params(direction='in', length=10, width=5, colors='k', labelsize=20)
+
+            axes[0].set_title('Actual', fontsize=18)
+            axes[1].set_title('Predicted', fontsize=18)
+            plt.show()
+        except Exception as e:
+            print("에러 발생", e)
+            pass
 
         return y_pred
 
@@ -305,7 +331,7 @@ if __name__ == "__main__":
     from datasets import load_data
     x, y, raw_data = load_data(args.dataset)
     n_clusters = len(np.unique(y))
-    # n_clusters = 3
+    # n_clusters = 2
     init = 'glorot_uniform'
     pretrain_optimizer = 'adam'
     # setting parameters
@@ -333,9 +359,9 @@ if __name__ == "__main__":
     elif args.dataset == 'crawling_data':
         update_interval = 30
         pretrain_epochs = 10
-        init = VarianceScaling(scale=1. / 3., mode='fan_in',
-                               distribution='uniform')  # [-limit, limit], limit=sqrt(1./fan_in)
-        pretrain_optimizer = SGD(lr=1, momentum=0.9)
+        # init = VarianceScaling(scale=1. / 3., mode='fan_in',
+        #                        distribution='uniform')  # [-limit, limit], limit=sqrt(1./fan_in)
+        # pretrain_optimizer = SGD(lr=1, momentum=0.9)
 
     if args.update_interval is not None:
         update_interval = args.update_interval
@@ -361,15 +387,11 @@ if __name__ == "__main__":
     y_pred = dec.fit(x, y=y, tol=args.tol, maxiter=args.maxiter, batch_size=args.batch_size,
                      update_interval=update_interval, save_dir=args.save_dir)
 
-    print("==== making result to csv ====")
-    cluster_csv = {'review': raw_data, 'score': y, 'cluster_num': y_pred}
-    df = pd.DataFrame(cluster_csv)
-    df.to_csv("./result_test_40.csv", index=True, encoding='utf-8')
-
-    # print('y:', y[:50])
-    # print('y_pred:', y_pred[:50])
     print()
     print('acc:', metrics.acc(y, y_pred))
     print('clustering time: ', (time() - t0))
 
-
+    print("==== making result to csv ====")
+    cluster_csv = {'review': raw_data, 'score': y, 'cluster_num': y_pred}
+    df = pd.DataFrame(cluster_csv)
+    df.to_csv("./result_test.csv", index=True, encoding='utf-8')
