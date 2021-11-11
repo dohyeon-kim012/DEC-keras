@@ -56,3 +56,4 @@ Name: acc, dtype: object'''
 sns.barplot(x=, y='acc', data=result, palette='Blues_d')
 plt.show()
 
+##
